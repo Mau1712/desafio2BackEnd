@@ -1,99 +1,127 @@
 /* DESAFIO II BACKEND*/
 
+const fs = require('fs').promises;
+const ruta = "./productos.json";
 
+class Producto {
 
-const fs = require('fs');
+    static codeId = 0;
 
+    constructor(title, description, price, image, stock) {
+        this.title = title
+        this.description = description
+        this.price = price
+        this.image = image
+        this.stock = stock
+
+        this.code = ++Producto.codeId;
+    }
+
+    get codigoDeCreacion() {
+        return this.code;
+    }
+}
 
 class ProductManager {
     constructor(path) {
-        this.path = path;
-        if (fs.existsSync(path) == false) {
-            fs.writeFileSync(path, JSON.stringify([]));
-        };
+        this.path = path
     }
-    static getNewId(lastProduct) {
-        if (!lastProduct) {
-            return 1;
+
+
+    addProduct = async (product) => {
+        const read = await fs.readFile(this.path, 'utf-8');
+        const data = JSON.parse(read)
+        const codeProd = data.map((prod) => prod.code);
+        const prodExist = codeProd.includes(product.code);
+
+        if (prodExist) {
+            return console.log("Producto Existente")
+        } else if (Object.values(product).includes("") || Object.values(product).includes(null)) {
+            return console.log("Llene todos los campos")
         } else {
-            return lastProduct.id + 1;
+            product = { ...product };
+            data.push(product)
+            await fs.writeFile(this.path, JSON.stringify(data), 'utf-8')
+            return console.log(`El producto id: ${product.code} se agrego correctamente`)
         }
-    }
-    async getProducts() {
-        let products = await fs.promises.readFile(this.path, 'utf-8');
-        return JSON.parse(products);
-    }
-    async addProduct(title, description, price, thumbnail, code, stock) {
-        let products = await this.getProducts();
-        let codes = products.map(p => p.code)
-
-        if (codes.includes(code)) {
-            console.log('El producto existe');
-            return;
-        }
-        if (!title || !description || !price || !thumbnail || !code || !stock) {
-            console.error('Complete todos los campos');
-            return
-        }
-        let lastProduct = products[products.length - 1]
-        let newId = ProductManager.getNewId(lastProduct);
-        products.push({ title: title, description: description, price: price, thumbnail: thumbnail, code: code, stock: stock, id: newId });
-        fs.writeFileSync(this.path, JSON.stringify(products));
     }
 
-    async getProductById(id) {
-        let products = await this.getProducts();
-        let product = products.find(p => p.id === id);
-        if (product) {
-            return product;
+    getProducts = async () => {
+        const read = await fs.readFile(this.path, 'utf-8')
+        const data = JSON.parse(read)
+        if (data.length != 0) {
+            console.log("Listado completo de productos:");
+            console.log(data);
+        } else {
+            console.log("No se encuentran productos en el listado.")
         }
-        console.error('Producto inexistente');
     }
-    async updateProduct(id, updatedProduct) {
-        let products = await this.getProducts();
-        let productIndex = products.findIndex(p => p.id == id);
-        products[productIndex] = { ...products[productIndex], ...updatedProduct };
-        await fs.promises.writeFile(this.path, JSON.stringify(products));
+
+    getProductById = async (code) => {
+        const read = await fs.readFile(this.path, 'utf-8');
+        const data = JSON.parse(read);
+        const findProduct = data.find((prod) => prod.code === code);
+        if (findProduct) {
+            console.log("Se ha encontrado el siguiente producto:")
+            return console.log(findProduct);
+        } else {
+            return console.log("Product Not found");
+        }
     }
-    async deleteProduct(id) {
-        let products = await this.getProducts();
-        let productIndex = products.findIndex(p => p.id == id);
-        products.splice(productIndex, 1);
-        await fs.promises.writeFile(this.path, JSON.stringify(products));
+
+    deleteProduct = async (code) => {
+        const read = await fs.readFile(this.path, "utf-8");
+        const data = JSON.parse(read);
+        const productoEliminado = JSON.stringify(
+            data.find((product) => product.code === code)
+        );
+        const newData = data.filter((product) => product.code !== code);
+        await fs.writeFile(this.path, JSON.stringify(newData), "utf-8");
+        return console.log(
+            `El producto ${productoEliminado} ha sido eliminado exitosamente`
+        );
+    }
+
+    updateProduct = async (code, entry, value) => {
+        const read = await fs.readFile(this.path, "utf-8");
+        const data = JSON.parse(read);
+        const index = data.findIndex((product) => product.code === code);
+        if (!data[index][entry]) {
+            return console.log("El producto no pudo ser actualizado.")
+        } else {
+            data[index][entry] = value;
+            await fs.writeFile(this.path, JSON.stringify(data, null, 2));
+            console.log("El producto se ha modificado de la siguiente manera:")
+            return console.log(data[index]);
+        }
     }
 }
-//testing 
 
-(async function main() {
-    try {
-        const productManager = new ProductManager('./productos.txt');
+const productManager = new ProductManager(ruta); 
 
-        //productos para el testing del método addProduct
-        await productManager.addProduct('Six pack Corona', '6 latas de 475ml', 2400, 'https://drive.google.com/file/d/1z5ZfIOau1uxfpyeYpasWUU0-vJzOdQwI/view?usp=share_link', "a1", 25);
-        await productManager.addProduct("Six pack Heineken", "6 latas de 475ml", 2200, "https://drive.google.com/file/d/14iKznNuqAXQ1G30yWAgWXuC7C3LbHcvk/view?usp=share_link", "a2", 15);
-        await productManager.addProduct("Six pack Brahma", "6 latas de 475ml", 1800, "https://drive.google.com/file/d/1KN612KXcg2DOobe539S13UmPL4v9zTg8/view?usp=share_link", "a3", 15);
-        await productManager.addProduct("Six pack Stella", "6 latas de 475ml", 2150, "https://drive.google.com/file/d/13Zxzkm5aaNXZ3WcIWxc3goDuRC_OXKA_/view?usp=share_link", "a4", 15);
+const sixPackCorona = new Producto("Six pack Corona", "6 latas de 475ml", 2400, "https://drive.google.com/file/d/1z5ZfIOau1uxfpyeYpasWUU0-vJzOdQwI/view?usp=share_link", 15)
+const sixPackHeineken = new Producto("Six pack Heineken", "6 latas de 475ml", 2200, "https://drive.google.com/file/d/14iKznNuqAXQ1G30yWAgWXuC7C3LbHcvk/view?usp=share_link", 15)
+const sixPackBrahma = new Producto("Six pack Brahma", "6 latas de 475ml", 1800, "https://drive.google.com/file/d/1KN612KXcg2DOobe539S13UmPL4v9zTg8/view?usp=share_link", 15)
+const sixPackStella = new Producto("Six pack Stella", "6 latas de 475ml", 2150, "https://drive.google.com/file/d/13Zxzkm5aaNXZ3WcIWxc3goDuRC_OXKA_/view?usp=share_link", 15)
 
-        //productos de prueba con un mismo código
-        await productManager.addProduct('prueba cod igual', 'producto prueba', 5485, 'sin imagen', '5896', 16);
-        await productManager.addProduct('prueba cod igual', 'producto prueba', 2658, 'sin imagen', '5896', 18);
+const test = async() => {
+    await fs.writeFile(ruta, "[]");
 
-        //getProducts
-        let resultProducts = await productManager.getProducts();
-        console.log(resultProducts);
+    await productManager.getProducts();
+    await productManager.addProduct(sixPackCorona);
+    await productManager.addProduct(sixPackHeineken);
+    await productManager.addProduct(sixPackBrahma);
+    await productManager.addProduct(sixPackStella);
+    await productManager.getProducts(); 
+    await productManager.getProductById(2);
+    await productManager.getProductById(7);
+    await productManager.updateProduct(1, "stock", 10);
+    await productManager.updateProduct(1, "price", 5500);
+    await productManager.getProducts();
+    await productManager.deleteProduct(3);
+    await productManager.getProducts();
 
-        //getProductsById
-        console.log(await productManager.getProductById(1));
-        productManager.getProductById(5);
+}
 
-        //updateProduct
-        await productManager.updateProduct(2, { price: 50 });
-        console.log(await productManager.getProductById(2));
+test();
 
-        //deleteProduct
-        await productManager.deleteProduct(1)
-        console.log(await productManager.getProducts());
-    } catch (err) {
-        console.error(err);
-    }
-})();
